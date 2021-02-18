@@ -47,7 +47,7 @@ if cmd == 'v' or cmd == 'V':
 
         icmd = input("Enter ID:")
         if icmd=='':
-            print("\033[1;31;40m Error id. \033[1;37;40m")
+            print("\033[1;31;40m Error id. \033[1;37;40m\n")
         else:
             d.execute("SELECT id,name FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select id,name from id input
             i.execute("SELECT password FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select password from id input
@@ -71,7 +71,7 @@ if cmd == 'v' or cmd == 'V':
             decrypted = decrypted = f.decrypt(p_encode) #decrypted
             ogpasswd = decrypted.decode() #decode from byte to string
 
-            print("Password for",p,"is",ogpasswd) #show id,name,password
+            print("Password for",p,"is",ogpasswd,"\n\n") #show id,name,password
 
 
 #insert
@@ -81,7 +81,7 @@ elif cmd == 'i' or cmd == 'I':
     p = input("password>")
 
     if n=='' or p=='': #detect blank input
-        print("\033[1;31;40m Can't insert into database.Plese input all of data. \033[1;37;40m")
+        print("\033[1;31;40m Can't insert into database.Plese input all of data. \033[1;37;40m\n")
     else:
         k = ("key") #set key
         k_encode = k.encode() #encode key to byte
@@ -104,14 +104,14 @@ elif cmd == 'i' or cmd == 'I':
         mycursor.execute(sql, val)
         mydb.commit() #confirm operation to database
 
-        print(mycursor.rowcount, "password inserted") #show number(s) of query that have inserted
+        print(mycursor.rowcount, "password inserted\n\n") #show number(s) of query that have inserted
 
 #delete
 elif cmd == 'd' or cmd == 'D':
     mycursor.execute("SELECT id,name FROM db_password.tb_nap") #select id,name from db
     myresult = mycursor.fetchall()
     for x in myresult: #show id,name query in database
-        print("What you want to delete")
+        print("What you want to delete?")
         print(x)
 
     i = input("Enter id:") #enter query id
@@ -123,8 +123,10 @@ elif cmd == 'd' or cmd == 'D':
         mycursor.execute(sql, (i,))
         mydb.commit() #confirm operation to database
 
-        print(mycursor.rowcount, "name and password deleted") #show number(s) of query that have deleted
+        print(mycursor.rowcount, "name and password deleted\n\n") #show number(s) of query that have deleted   
 
 #error
 else :
     print("\033[1;31;40m Error,Can't define command...plese try again \033[1;37;40m\n")
+
+os.system('pause')
