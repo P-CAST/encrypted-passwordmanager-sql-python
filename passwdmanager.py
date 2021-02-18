@@ -47,7 +47,7 @@ if cmd == 'v' or cmd == 'V':
 
         icmd = input("Enter ID:")
         if icmd=='':
-            print("Error id.")
+            print("\033[1;31;40m Error id. \033[1;37;40m")
         else:
             d.execute("SELECT id,name FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select id,name from id input
             i.execute("SELECT password FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select password from id input
@@ -81,7 +81,7 @@ elif cmd == 'i' or cmd == 'I':
     p = input("password>")
 
     if n=='' or p=='': #detect blank input
-        print("Can't insert into database.Plese input all of data.")
+        print("\033[1;31;40m Can't insert into database.Plese input all of data. \033[1;37;40m")
     else:
         k = ("key") #set key
         k_encode = k.encode() #encode key to byte
@@ -117,7 +117,7 @@ elif cmd == 'd' or cmd == 'D':
     i = input("Enter id:") #enter query id
     
     if i=='': #detect blank input
-        print("Error id.")
+        print("\033[1;31;40m Error id. \033[1;37;40m")
     else:
         sql = "DELETE FROM db_password.tb_nap WHERE id = %s" #delete from query id
         mycursor.execute(sql, (i,))
