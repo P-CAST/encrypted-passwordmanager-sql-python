@@ -1,10 +1,13 @@
 import mysql.connector
+import urllib
 import sqlite3
 import functools
 import operator
 import json
 import base64
+import re
 import os
+import sys
 import cryptography
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
@@ -14,8 +17,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 #connect to database
 mydb = mysql.connector.connect(
   host="localhost",
-  user="root",
-  database="db_password"
+  user="root"
 )
 
 #set cursor
@@ -23,13 +25,17 @@ mycursor = mydb.cursor(buffered=True)
 d = mydb.cursor(buffered=True)
 i = mydb.cursor(buffered=True)
 
+#detect and create database
+mycursor.execute('CREATE DATABASE IF NOT EXISTS db_password')
+mycursor.execute('CREATE TABLE IF NOT EXISTS db_password.tb_nap (id INT NOT NULL AUTO_INCREMENT,name VARCHAR(255) NOT NULL,password VARCHAR(255) NOT NULL,PRIMARY KEY (id))')
+
 #interfaces
 print("\n\nWelcome to password manager python! what you want to do?(v to view all your password,i to insert,d to delete")
 cmd = input(">")
 
 #view query
 if cmd == 'v' or cmd == 'V':
-    mycursor.execute("SELECT id, name FROM tb_nap") #select id,name from database
+    mycursor.execute("SELECT id, name FROM db_password.tb_nap") #select id,name from database
     myresult = mycursor.fetchall()
 
     if len(myresult)==0: #detect blank input
@@ -43,8 +49,8 @@ if cmd == 'v' or cmd == 'V':
         if icmd=='':
             print("Error id.")
         else:
-            d.execute("SELECT id,name FROM tb_nap WHERE id= %s",(icmd,)) #select id,name from id input
-            i.execute("SELECT password FROM tb_nap WHERE id= %s",(icmd,)) #select password from id input
+            d.execute("SELECT id,name FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select id,name from id input
+            i.execute("SELECT password FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select password from id input
             p = d.fetchall()
             i = i.fetchall()
             password = " , ".join( map(str, i) ) #transition list to string
@@ -75,7 +81,7 @@ elif cmd == 'i' or cmd == 'I':
     p = input("password>")
 
     if n=='' or p=='': #detect blank input
-        print("Can't insert into database.")
+        print("Can't insert into database.Plese input all of data.")
     else:
         k = ("key") #set key
         k_encode = k.encode() #encode key to byte
@@ -93,7 +99,7 @@ elif cmd == 'i' or cmd == 'I':
         f = Fernet(key) #ready to encrypt
         encrypted = f.encrypt(p_encode) #encrpyted
 
-        sql = "INSERT INTO tb_nap (name, password) VALUES (%s, %s)" #insert to table query
+        sql = "INSERT INTO db_password.tb_nap (name, password) VALUES (%s, %s)" #insert to table query
         val = (n, encrypted)
         mycursor.execute(sql, val)
         mydb.commit() #confirm operation to database
@@ -102,17 +108,18 @@ elif cmd == 'i' or cmd == 'I':
 
 #delete
 elif cmd == 'd' or cmd == 'D':
-    mycursor.execute("SELECT id,name FROM tb_nap") #select id,name from db
+    mycursor.execute("SELECT id,name FROM db_password.tb_nap") #select id,name from db
     myresult = mycursor.fetchall()
     for x in myresult: #show id,name query in database
         print("What you want to delete")
         print(x)
 
     i = input("Enter id:") #enter query id
+    
     if i=='': #detect blank input
-        print("Error receiving command.")
+        print("Error id.")
     else:
-        sql = "DELETE FROM tb_nap WHERE id = %s" #delete from query id
+        sql = "DELETE FROM db_password.tb_nap WHERE id = %s" #delete from query id
         mycursor.execute(sql, (i,))
         mydb.commit() #confirm operation to database
 
