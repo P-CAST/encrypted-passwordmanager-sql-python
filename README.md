@@ -1,7 +1,10 @@
 This is a passwordmanager program with password encryption and security 
 interface is easy to understand and has a clear instruction in every progress throughout the program .
 
-To start you need to install xampp* then start apache and mysql service,then create a database(name: db_password) also table(name: tb_nap) and you're ready to go.
+To start you need to install xampp* then start apache and mysql service,you're ready to go.
+
+First you open program you need to insert database username and password
+then you need to insert master password(this password should be same all time you using)
 
 If you want to insert new row use i/I command.
 If you want to view your exist data use v/V command.
