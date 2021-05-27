@@ -20,7 +20,20 @@ def enter():
     enter.user = input("Enter database username: ")
     enter.passwd = getpass.getpass("Enter database password: ")
     enter.k = getpass.getpass("Enter master password: ")
-    func()
+    test_login()
+
+def test_login():
+    try:
+        #connect to database
+        mydb = mysql.connector.connect(
+        host='localhost', #or your hostname/ip-address
+        user=(enter.user),
+        password=(enter.passwd)
+        )
+        func()
+    except mysql.connector.Error as err:
+        print("\033[1;31;40m Error username or password.Plese try again\033[1;37;40m\n")
+        enter()
 
 def func():
     if enter.user=='' or enter.passwd=='' or enter.k=='': #detect blank input
