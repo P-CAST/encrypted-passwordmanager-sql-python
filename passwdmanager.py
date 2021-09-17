@@ -1,15 +1,7 @@
 import mysql.connector
 import getpass
-import urllib
-import sqlite3
-import functools
-import operator
-import json
 import base64
-import re
 import os
-import sys
-import cryptography
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -75,6 +67,11 @@ def func():
                 icmd = input("Enter ID:")
                 if icmd=='':
                     print("\033[1;31;40m Error id. \033[1;37;40m\n")
+                try:
+                    icmd = int(icmd)
+                except ValueError:
+                    print("\033[1;31;40m Error id. \033[1;37;40m\n") 
+                    func()
                 else:
                     d.execute("SELECT id,name FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select id,name from id input
                     i.execute("SELECT password FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select password from id input
