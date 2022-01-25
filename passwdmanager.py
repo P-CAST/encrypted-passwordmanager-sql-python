@@ -1,169 +1,183 @@
-import mysql.connector
-import getpass
-import base64
 import os
+import base64
+import getpass
+import mysql.connector
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC 
 
-def enter():
-    #enter user and password for database and master password
-    enter.user = input("Enter database username: ")
-    enter.passwd = getpass.getpass("Enter database password: ")
-    enter.k = getpass.getpass("Enter master password: ")
-    test_login()
+"""
+    +------------SECTION------------+
+    - setup    : setup dependencies
+    - db_setup : setup database
+    - menu     : menu prompting
+    - db_check : check if row exist
+    - view     : view module
+    - insert   : insert module
+    - delete   : delete module
+    - salter   : salt generator
+    - kdf      : _cryption module
+    +-------------------------------+
+"""
 
-def test_login():
-    try:
-        #connect to database
-        mydb = mysql.connector.connect(
-        host='localhost', #or your hostname/ip-address
-        user=(enter.user),
-        password=(enter.passwd)
+def setup():
+    global login_user
+    global mysql_passwd
+    global main_passwd
+    global mydb
+    global mysql_cursor
+    global id_cursor
+    global password_cursor
+    global salt_cursor
+
+    # login section
+    login_user = input('Enter user: ')
+    mysql_passwd = getpass.getpass('Enter password: ')
+    main_passwd = getpass.getpass('Enter main password: ')
+    
+    # Database connection
+    mydb = mysql.connector.connect(
+        host='localhost', # Change this if you have dedicated Database
+        user=(login_user),
+        password=(mysql_passwd)
         )
-        func()
-    except mysql.connector.Error as err:
-        print("\033[1;31;40m Error username or password.Plese try again\033[1;37;40m\n")
-        enter()
+    mysql_cursor = mydb.cursor(buffered=True)
+    id_cursor = mydb.cursor(buffered=True)
+    password_cursor = mydb.cursor(buffered=True)
+    salt_cursor = mydb.cursor(buffered=True)
+    db_setup()
 
-def func():
-    if enter.user=='' or enter.passwd=='' or enter.k=='': #detect blank input
-        print("\033[1;31;40m Error username or password.Plese try again\033[1;37;40m\n")
-        enter()
+def db_setup():
+    # Check if Database exist
+    mysql_cursor.execute(f'CREATE DATABASE IF NOT EXISTS db_password_{login_user}')
+    
+    # Check if Table exist
+    mysql_cursor.execute(f'CREATE TABLE IF NOT EXISTS db_password_{login_user}.tb_{login_user} (id INT NOT NULL AUTO_INCREMENT,name VARCHAR(255) NOT NULL,tag VARCHAR(255), password BLOB NOT NULL, salt BLOB NOT NULL, PRIMARY KEY (id))')
+    menu() # Forward to menu
+
+def menu():
+    print('\nWelcome!')
+    print('v to view all your password')
+    print('i to insert new password')
+    print('d to delete password')
+    print('q to quit the program')
+    cmd = input('> ').lower()
+
+    if cmd == 'v':
+        view()
+    elif cmd == 'i':
+        insert()
+    elif cmd == 'd':
+        delete()
+    elif cmd == 'q':
+        print('\nBye!')
+        return 0
     else:
-        #connect to database
-        mydb = mysql.connector.connect(
-        host='localhost', #or your hostname/ip-address
-        user=(enter.user),
-        password=(enter.passwd)
-        )
+        print('\nNot an option!')
+        return menu()
+    
+def db_check():
+    # Query id, name
+    mysql_cursor.execute(f"SELECT id, name FROM db_password_{login_user}.tb_{login_user}")
+    myresult = mysql_cursor.fetchall()
 
-        #set cursor
-        mycursor = mydb.cursor(buffered=True)
-        d = mydb.cursor(buffered=True)
-        i = mydb.cursor(buffered=True)
+    # If query return 0
+    if len(myresult) == 0:
+        print('Nothing to show.')
+    else: # If there's data
+        for item in myresult:
+            print(item)
+        pass
 
-        #detect and create database
-        mycursor.execute('CREATE DATABASE IF NOT EXISTS db_password')
-        mycursor.execute('CREATE TABLE IF NOT EXISTS db_password.tb_nap (id INT NOT NULL AUTO_INCREMENT,name VARCHAR(255) NOT NULL,password VARCHAR(255) NOT NULL,PRIMARY KEY (id))')
-
-        #interfaces
-        print("\n\nWelcome to password manager python! what you want to do?(v to view all your password,i to insert,d to delete,q to exit)")
-        cmd = input(">")
-
-        #view query
-        if cmd == 'v' or cmd == 'V':
-            mycursor.execute("SELECT id, name FROM db_password.tb_nap") #select id,name from database
-            myresult = mycursor.fetchall()
-
-            if len(myresult)==0: #detect blank input
-                print("Nothing here\n")
-            else:    
-                print("What you wanna see?")
-                for x in myresult :
-                    print(x)
-
-                icmd = input("Enter ID:")
-                if icmd=='':
-                    print("\033[1;31;40m Error id. \033[1;37;40m\n")
-                try:
-                    icmd = int(icmd)
-                except ValueError:
-                    print("\033[1;31;40m Error id. \033[1;37;40m\n") 
-                    func()
-                else:
-                    d.execute("SELECT id,name FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select id,name from id input
-                    i.execute("SELECT password FROM db_password.tb_nap WHERE id= %s",(icmd,)) #select password from id input
-                    p = d.fetchall()
-                    i = i.fetchall()
-                    password = " , ".join( map(str, i) ) #transition list to string
-            
-                    k_encode = enter.k.encode() #encode key to byte
-                    p_encode = password.encode() #encode password to byte
-                    salt = b'`R\xf7\xc0\xf3+@\xdd~\xa4K1Ty\x83\x9a'
-                    kdf = PBKDF2HMAC(
-                        algorithm=hashes.SHA256(),
-                        length=32,
-                        salt=salt,
-                        iterations=100000,
-                        backend=default_backend()
-                    )
-                    key = base64.urlsafe_b64encode(kdf.derive(k_encode))
-                    f = Fernet(key) #ready to decrypt
-                    decrypted = decrypted = f.decrypt(p_encode) #decrypted
-                    ogpasswd = decrypted.decode() #decode from byte to string
-
-                    print("Password for",p,"is",ogpasswd,"\n\n") #show id,name,password
-            func()
-
-
-        #insert
-        elif cmd == 'i' or cmd == 'I':
-            print("Insert name and password")
-            n = input("name>")
-            p = getpass.getpass("password>")
-
-            if n=='' or p=='': #detect blank input
-                print("\033[1;31;40m Can't insert into database.Plese input all of data. \033[1;37;40m\n")
-            else:
-                k_encode = enter.k.encode() #encode key to byte
-                p_encode = p.encode() #encode password input to byte
-                salt = b'`R\xf7\xc0\xf3+@\xdd~\xa4K1Ty\x83\x9a'
-                kdf = PBKDF2HMAC(
-                    algorithm=hashes.SHA256(),
-                    length=32,
-                    salt=salt,
-                    iterations=100000,
-                    backend=default_backend()
-                )
-                key = base64.urlsafe_b64encode(kdf.derive(k_encode))
-
-                f = Fernet(key) #ready to encrypt
-                encrypted = f.encrypt(p_encode) #encrpyted
-
-                sql = "INSERT INTO db_password.tb_nap (name, password) VALUES (%s, %s)" #insert to table query
-                val = (n, encrypted)
-                mycursor.execute(sql, val)
-                mydb.commit() #confirm operation to database
-
-                print(mycursor.rowcount, "password inserted\n\n") #show number(s) of query that have inserted
-            func()
-
-        #delete
-        elif cmd == 'd' or cmd == 'D':
-            mycursor.execute("SELECT id,name FROM db_password.tb_nap") #select id,name from db
-            myresult = mycursor.fetchall()
-            for x in myresult: #show id,name query in database
-                print("What you want to delete?")
-                print(x)
-
-            i = input("Enter id:") #enter query id
-            c = input("Confirm deleting?(y/n): ")
-            
-            if i=='': #detect blank input
-                print("\033[1;31;40m Error id. \033[1;37;40m")
-            else:
-                if c == 'y' or c =='Y':
-                    sql = "DELETE FROM db_password.tb_nap WHERE id = %s" #delete from query id
-                    mycursor.execute(sql, (i,))
-                    mydb.commit() #confirm operation to database
-
-                    print(mycursor.rowcount, "name and password deleted\n\n") #show number(s) of query that have deleted   
-                else:
-                    print("Cancled...")
-            func()
+def view():
+    db_check()
         
-        elif cmd == 'q' or cmd == 'Q':
-            print("See you next time\n")
-            end()
-            
-        #error
-        else :
-            print("\033[1;31;40m Error,Can't define command...plese try again \033[1;37;40m\n")
-            func()
-        
-def end():
-    os.system('pause')
+    view_id = input('Enter id: ')
+    try:
+        view_id = int(view_id) # Check if ID is INT or not
 
-enter()
+        # Check if data exist on ID
+        id_cursor.execute(f"SELECT id, COUNT(*) FROM db_password_{login_user}.tb_{login_user} WHERE id = {view_id} GROUP BY id")
+        check_id = id_cursor.rowcount
+        if check_id == 0:
+            print('\nInvalid ID')
+            return view()
+    except:
+        print('\nInvalid ID')
+    
+    # Query id, name, salt, password
+    id_cursor.execute(f"SELECT id,name FROM db_password_{login_user}.tb_{login_user} WHERE id={view_id}")
+    salt_cursor.execute(f"SELECT salt FROM db_password_{login_user}.tb_{login_user} WHERE id={view_id}")
+    password_cursor.execute(f"SELECT password FROM db_password_{login_user}.tb_{login_user} WHERE id={view_id}")
+
+    # Clean Query
+    id_for_view = id_cursor.fetchall()[0][1]
+    salt_for_view = salt_cursor.fetchall()[0][0]
+    password_for_view = password_cursor.fetchall()[0][0]
+
+    kdf(salt_for_view) # Pass salt to KDF module
+    decrypted = crypter.decrypt(password_for_view) # Decrypt password
+    showed_password = decrypted.decode() # Decode byte object to normal string
+    print("Password for",id_for_view,"is",showed_password)
+    menu()
+
+def insert():
+    name = input('Name: ')
+    tag = input('Tag: ')
+    password = input('Password: ') 
+
+    if name == '' or password == '':
+        print('Please enter something')
+    else:
+        try:
+            salt = salter() # Gen Salt
+            kdf(salt) # Pass salt to KDF module
+            password = crypter.encrypt(password.encode()) # Encrypt password(.encode() to turn into byte object)
+
+            # Insert name, tag, password, salt to Database
+            sql = f"INSERT INTO db_password_{login_user}.tb_{login_user} (name, tag, password, salt) VALUES (%s, %s, %s, %s)"
+            value = (name, tag, password, salt)
+            mysql_cursor.execute(sql, value)
+            mydb.commit()
+            print(mysql_cursor.rowcount, 'password inserted')
+            menu()
+        except:
+            print('Something wrong')
+
+def delete():
+    db_check()
+
+    del_id = input('Enter id: ')
+    del_confirm = input('Confirm deleting?(y/N): ').lower()
+            
+    if del_id == '':
+        print('Invalid id')
+    else:
+        if del_confirm == 'y':
+            # Delete entire row by ID
+            mysql_cursor.execute(f"DELETE FROM db_password_{login_user}.tb_{login_user} WHERE id ={del_id}")
+            mydb.commit()
+            print(mysql_cursor.rowcount, "name and password deleted")
+            menu()
+        else:
+            print("Cancled...")
+
+def salter():
+    return os.urandom(16) # Generate random byte for lenght of 16
+
+def kdf(salt):
+    global crypter
+
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(), # Algorithm SHA256
+        length=32,
+        salt=salt,
+        iterations=100000, # Iterations can be changed 
+        backend=default_backend()
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(main_passwd.encode()))
+    crypter = Fernet(key) # Crypter
+
+if __name__ == '__main__':
+    setup()
