@@ -1,3 +1,5 @@
+*** THIS PROGRAM STILL HAVE SECURITY ISSUE, PLEASE BE PATIENT ON NEXT UPDATE ***
+
 This is a passwordmanager program with password encryption and security 
 interface is easy to understand and has a clear instruction in every progress throughout the program .
 
