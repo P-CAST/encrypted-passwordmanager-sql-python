@@ -2,6 +2,7 @@ import os
 import base64
 import getpass
 import mysql.connector
+import cryptography
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -37,16 +38,20 @@ def setup():
     main_passwd = getpass.getpass('Enter main password: ')
     
     # Database connection
-    mydb = mysql.connector.connect(
-        host='localhost', # Change this if you have dedicated Database
-        user=(login_user),
-        password=(mysql_passwd)
-        )
+    try:
+        mydb = mysql.connector.connect(
+            host='localhost', # Change this if you have dedicated Database
+            user=(login_user),
+            password=(mysql_passwd)
+            )
+    except mysql.connector.Error as err:
+        print(f"\nCan't connect to Database, error: {err}")
+        exit(1)
     mysql_cursor = mydb.cursor(buffered=True)
     id_cursor = mydb.cursor(buffered=True)
     password_cursor = mydb.cursor(buffered=True)
     salt_cursor = mydb.cursor(buffered=True)
-    db_setup()
+    return db_setup()
 
 def db_setup():
     # Check if Database exist
@@ -54,7 +59,7 @@ def db_setup():
     
     # Check if Table exist
     mysql_cursor.execute(f'CREATE TABLE IF NOT EXISTS db_password_{login_user}.tb_{login_user} (id INT NOT NULL AUTO_INCREMENT,name VARCHAR(255) NOT NULL,tag VARCHAR(255), password BLOB NOT NULL, salt BLOB NOT NULL, PRIMARY KEY (id))')
-    menu() # Forward to menu
+    return menu() # Forward to menu
 
 def menu():
     print('\nWelcome!')
@@ -65,30 +70,34 @@ def menu():
     cmd = input('> ').lower()
 
     if cmd == 'v':
-        view()
+        return view()
     elif cmd == 'i':
-        insert()
+        return insert()
     elif cmd == 'd':
-        delete()
+        return delete()
     elif cmd == 'q':
         print('\nBye!')
-        return 0
+        exit(0)
     else:
         print('\nNot an option!')
         return menu()
     
 def db_check():
-    # Query id, name
-    mysql_cursor.execute(f"SELECT id, name FROM db_password_{login_user}.tb_{login_user}")
-    myresult = mysql_cursor.fetchall()
-
-    # If query return 0
-    if len(myresult) == 0:
-        print('Nothing to show.')
-    else: # If there's data
-        for item in myresult:
-            print(item)
-        pass
+    try:
+        # Query id, name
+        mysql_cursor.execute(f"SELECT id, name FROM db_password_{login_user}.tb_{login_user}")
+        myresult = mysql_cursor.fetchall()
+        # If query return 0
+        if len(myresult) == 0:
+            print('Nothing to show.')
+            return menu()
+        else: # If there's data
+            for item in myresult:
+                print(item)
+            pass
+    except mysql.connector.Error as err:
+        print(f'Error query data from database, error: {err}')
+        exit(1)
 
 def view():
     db_check()
@@ -105,6 +114,7 @@ def view():
             return view()
     except:
         print('\nInvalid ID')
+        return view()
     
     # Query id, name, salt, password
     id_cursor.execute(f"SELECT id,name FROM db_password_{login_user}.tb_{login_user} WHERE id={view_id}")
@@ -117,10 +127,14 @@ def view():
     password_for_view = password_cursor.fetchall()[0][0]
 
     kdf(salt_for_view) # Pass salt to KDF module
-    decrypted = crypter.decrypt(password_for_view) # Decrypt password
-    showed_password = decrypted.decode() # Decode byte object to normal string
-    print("Password for",id_for_view,"is",showed_password)
-    menu()
+    try:
+        decrypted = crypter.decrypt(password_for_view) # Decrypt password
+        showed_password = decrypted.decode() # Decode byte object to normal string
+        print("Password for",id_for_view,"is",showed_password)
+    except cryptography.fernet.InvalidToken:
+        print('\nInvalid key (main password), please re-open the application')
+        exit(1)
+    return menu()
 
 def insert():
     name = input('Name: ')
@@ -129,6 +143,7 @@ def insert():
 
     if name == '' or password == '':
         print('Please enter something')
+        return view()
     else:
         try:
             salt = salter() # Gen Salt
@@ -136,14 +151,12 @@ def insert():
             password = crypter.encrypt(password.encode()) # Encrypt password(.encode() to turn into byte object)
 
             # Insert name, tag, password, salt to Database
-            sql = f"INSERT INTO db_password_{login_user}.tb_{login_user} (name, tag, password, salt) VALUES (%s, %s, %s, %s)"
-            value = (name, tag, password, salt)
-            mysql_cursor.execute(sql, value)
+            mysql_cursor.execute(f"INSERT INTO db_password_{login_user}.tb_{login_user} (name, tag, password, salt) VALUES ({name}, {tag}, {password}, {salt})")
             mydb.commit()
             print(mysql_cursor.rowcount, 'password inserted')
-            menu()
         except:
             print('Something wrong')
+        return menu()
 
 def delete():
     db_check()
@@ -153,15 +166,20 @@ def delete():
             
     if del_id == '':
         print('Invalid id')
+        return delete()
     else:
         if del_confirm == 'y':
             # Delete entire row by ID
-            mysql_cursor.execute(f"DELETE FROM db_password_{login_user}.tb_{login_user} WHERE id ={del_id}")
-            mydb.commit()
-            print(mysql_cursor.rowcount, "name and password deleted")
-            menu()
+            try:
+                mysql_cursor.execute(f"DELETE FROM db_password_{login_user}.tb_{login_user} WHERE id ={del_id}")
+                mydb.commit()
+                print(mysql_cursor.rowcount, "name and password deleted")
+            except:
+                print('Something wrong')
+            return menu()
         else:
             print("Cancled...")
+        return menu()
 
 def salter():
     return os.urandom(16) # Generate random byte for lenght of 16
